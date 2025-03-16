@@ -8,7 +8,7 @@ setuptools.setup(
     version='6.0.0',
     author='Densaugeo',
     author_email='author@example.com',
-    description='Python\'s http.server extended to include a file upload page',
+    description="Python's http.server extended to include a file upload page",
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/Densaugeo/uploadserver',
@@ -19,7 +19,10 @@ setuptools.setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.9',
-    entry_points = {
+    install_requires=[
+        'rich'
+    ],
+    entry_points={
         'console_scripts': ['uploadserver=uploadserver:main'],
     }
 )
