@@ -14,23 +14,27 @@ jobs:
             tar -czf "$B/$d/next.tgz" -C "$RUNNER_TEMP" marker.txt
           done
       - name: glob library probe
+        continue-on-error: true
         run: |
-          npm init -y >/dev/null 2>&1
-          npm i @actions/glob >/dev/null 2>&1
-          cat > /tmp/g.mjs <<'EOF'
-          import * as glob from '@actions/glob'
-          const base = process.env.RUNNER_TEMP + '/art'
-          for (const pat of [base+'/*', base+'/**', base+'/**/*.tgz']) {
-            const g = await glob.create(pat)
-            const r = await g.glob()
-            console.log('PATTERN', pat)
-            r.forEach(x => console.log('   MATCH', JSON.stringify(x)))
-          }
+          npm i @actions/glob >/dev/null 2>&1 || true
+          cat > globtest.cjs <<'EOF'
+          const glob = require('@actions/glob');
+          (async () => {
+            const base = process.env.RUNNER_TEMP + '/art';
+            for (const pat of [base+'/*', base+'/**', base+'/**/*.tgz']) {
+              const g = await glob.create(pat);
+              const r = await g.glob();
+              console.log('PATTERN', pat);
+              r.forEach(x => console.log('   MATCH', JSON.stringify(x)));
+            }
+          })();
           EOF
-          node /tmp/g.mjs
+          node globtest.cjs
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: preview-tarballs
+          if-no-files-found: warn
           path: |
             /home/runner/work/_temp/art/normal/next.tgz
             /home/runner/work/_temp/art/..\..\commits\1111111111111111111111111111111111111111/next.tgz
