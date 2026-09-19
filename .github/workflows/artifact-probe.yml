@@ -8,37 +8,21 @@ jobs:
         run: |
           set -eux
           B="$RUNNER_TEMP/art"
-          mkdir -p "$B/normal" "$B/..\\..\\commits\\1111111111111111111111111111111111111111" "$B/..%2f..%2fcommits%2f2222222222222222222222222222222222222222"
+          mkdir -p "$B/normal" "$B/..\\..\\commits\\1111111111111111111111111111111111111111"
           printf 'BBH-MARKER-UNIQUE-12345' > "$RUNNER_TEMP/marker.txt"
-          for d in normal "..\\..\\commits\\1111111111111111111111111111111111111111" "..%2f..%2fcommits%2f2222222222222222222222222222222222222222"; do
+          for d in normal "..\\..\\commits\\1111111111111111111111111111111111111111"; do
             tar -czf "$B/$d/next.tgz" -C "$RUNNER_TEMP" marker.txt
           done
-      - name: glob library probe
-        continue-on-error: true
-        run: |
-          npm i @actions/glob >/dev/null 2>&1 || true
-          cat > globtest.cjs <<'EOF'
-          const glob = require('@actions/glob');
-          (async () => {
-            const base = process.env.RUNNER_TEMP + '/art';
-            for (const pat of [base+'/*', base+'/**', base+'/**/*.tgz']) {
-              const g = await glob.create(pat);
-              const r = await g.glob();
-              console.log('PATTERN', pat);
-              r.forEach(x => console.log('   MATCH', JSON.stringify(x)));
-            }
-          })();
-          EOF
-          node globtest.cjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: preview-tarballs-placeholder
+          path: ${{ runner.temp }}/art/normal
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: preview-tarballs
           if-no-files-found: warn
-          path: |
-            /home/runner/work/_temp/art/normal/next.tgz
-            /home/runner/work/_temp/art/..\..\commits\1111111111111111111111111111111111111111/next.tgz
-            /home/runner/work/_temp/art/..%2f..%2fcommits%2f2222222222222222222222222222222222222222/next.tgz
+          path: ${{ runner.temp }}/art
   consume:
     needs: make
     runs-on: ubuntu-latest
