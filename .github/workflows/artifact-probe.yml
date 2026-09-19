@@ -4,36 +4,41 @@ jobs:
   make:
     runs-on: ubuntu-latest
     steps:
-      - name: create weird dir and upload artifact
+      - name: create weird dirs and inspect glob behavior
         run: |
           set -eux
-          D="$RUNNER_TEMP/art/..\\..\\commits\\1111111111111111111111111111111111111111"
-          mkdir -p "$D"
+          B="$RUNNER_TEMP/art"
+          mkdir -p "$B/..\\..\\commits\\1111111111111111111111111111111111111111"
           printf 'BBH-MARKER-UNIQUE-12345' > "$RUNNER_TEMP/marker.txt"
-          tar -czf "$D/next.tgz" -C "$RUNNER_TEMP" marker.txt
-          ls -la "$RUNNER_TEMP/art/"
-      - uses: actions/upload-artifact@v4
+          tar -czf "$B/..\\..\\commits\\1111111111111111111111111111111111111111/next.tgz" -C "$RUNNER_TEMP" marker.txt
+          mkdir -p "$B/..%2f..%2fcommits%2f2222222222222222222222222222222222222222"
+          cp "$B/..\\..\\commits\\1111111111111111111111111111111111111111/next.tgz" "$B/..%2f..%2fcommits%2f2222222222222222222222222222222222222222/next.tgz"
+          find "$B" -mindepth 1 -maxdepth 2 | cat -A | head -10
+      - name: glob test (node)
+        shell: bash
+        run: |
+          cat > /tmp/globtest.mjs <<'EOF'
+          import * as glob from '/home/runner/work/_actions/actions/upload-artifact/v4/dist/index.js'
+          EOF
+          echo "skip"
+      - uses: actions/upload-artifact@v7
         with:
           name: preview-tarballs
-          path: ${{ runner.temp }}/art/*
+          path: ${{ runner.temp }}/art/**
   consume:
     needs: make
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: preview-tarballs
           path: ${{ runner.temp }}/preview-tarballs
       - name: inspect
         run: |
           set -x
-          ls -la "$RUNNER_TEMP/preview-tarballs/" || true
+          find "$RUNNER_TEMP/preview-tarballs" | cat -A | head -20
           node -e '
             const fs=require("fs");
             const dir=process.env.RUNNER_TEMP+"/preview-tarballs";
-            const entries=fs.readdirSync(dir,{withFileTypes:true});
-            for(const e of entries){
-              console.log("ENTRY:",JSON.stringify(e.name),"isDir:",e.isDirectory());
-              const u=new URL("https://vercel-packages.vercel.app/next/commits/AAAA/"+e.name);
-              console.log("   URL path =>",u.pathname);
-            }'
+            const walk=(d)=>{ for(const e of fs.readdirSync(d,{withFileTypes:true})){ const p=d+"/"+e.name; console.log("ENTRY:",JSON.stringify(e.name),"isDir:",e.isDirectory()); const u=new URL("https://vercel-packages.vercel.app/next/commits/AAAA/"+e.name); console.log("   URL path =>",u.pathname); if(e.isDirectory()) walk(p);} };
+            walk(dir);'
