@@ -1,0 +1,39 @@
+name: artifact-probe
+on: [push, workflow_dispatch]
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    steps:
+      - name: create weird dir and upload artifact
+        run: |
+          set -eux
+          D="$RUNNER_TEMP/art/..\\..\\commits\\1111111111111111111111111111111111111111"
+          mkdir -p "$D"
+          printf 'BBH-MARKER-UNIQUE-12345' > "$RUNNER_TEMP/marker.txt"
+          tar -czf "$D/next.tgz" -C "$RUNNER_TEMP" marker.txt
+          ls -la "$RUNNER_TEMP/art/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preview-tarballs
+          path: ${{ runner.temp }}/art/*
+  consume:
+    needs: make
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: preview-tarballs
+          path: ${{ runner.temp }}/preview-tarballs
+      - name: inspect
+        run: |
+          set -x
+          ls -la "$RUNNER_TEMP/preview-tarballs/" || true
+          node -e '
+            const fs=require("fs");
+            const dir=process.env.RUNNER_TEMP+"/preview-tarballs";
+            const entries=fs.readdirSync(dir,{withFileTypes:true});
+            for(const e of entries){
+              console.log("ENTRY:",JSON.stringify(e.name),"isDir:",e.isDirectory());
+              const u=new URL("https://vercel-packages.vercel.app/next/commits/AAAA/"+e.name);
+              console.log("   URL path =>",u.pathname);
+            }'
